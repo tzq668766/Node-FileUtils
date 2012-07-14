@@ -12,22 +12,22 @@ File.protect (defaultSM);
 
 //CWD
 new File ("contains.js").size (function (error, size){
-	console.log (size); //Prints: 209 (READ allowed)
+	console.log ("1: " + size); //Prints: 205 (READ allowed)
 });
 var f2 = new File ("temp");
 f2.removeOnExit (function (error, removed){
-	console.log (removed); //Prints: true (WRITE allowed)
+	console.log ("2: " + removed); //Prints: true (WRITE allowed)
 });
 f2.createNewFile (function (error, created){
-	console.log (created); //Prints: true (WRITE allowed)
+	console.log ("3: " + created); //Prints: true (WRITE allowed)
 });
 
 //Outside CWD
 var f3 = new File ("../LICENSE");
 f3.size (function (error, size){
-	console.log (size); //Prints: 1093 (READ allowed)
+	console.log ("4: " + size); //Prints: 1093 (READ allowed)
 });
 f3.remove (function (error, removed){
-	console.log (removed); //Prints: false (WRITE denied)
-	console.log (error); //Prints: [Error: Security error, cannot write.]
+	console.log ("5: " + removed); //Prints: false (WRITE denied)
+	console.log ("6: " + error); //Prints: [Error: Security error, cannot write.]
 });
