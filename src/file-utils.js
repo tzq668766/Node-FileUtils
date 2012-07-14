@@ -187,7 +187,7 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 };
 
 File.prototype.contains = function (file, cb){
-	if (!cb) return;
+	/*if (!cb) return;
 	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	if (!canReadSM (this._usablePath)){
@@ -240,6 +240,11 @@ File.prototype.contains = function (file, cb){
 			
 			search (me._usablePath);
 		}
+	});*/
+	
+	this.search (file, function (error, files){
+		if (error) cb (error, false);
+		else cb (null, files.length !== 0);
 	});
 };
 
@@ -1049,7 +1054,7 @@ File.prototype.toString = function (){
 	return this._path;
 };
 
-/*File.prototype.zip = function (location, replace, cb){
+File.prototype.zip = function (location, replace, cb){
 	var argsLen = arguments.length;
 	if (argsLen === 1){
 		replace = false;
@@ -1074,7 +1079,7 @@ File.prototype.toString = function (){
 	}
 	
 	var me = this;
-};*/
+};
 
 var SecurityManager = function (){
 	this._allow = [{
