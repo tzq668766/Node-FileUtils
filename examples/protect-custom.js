@@ -12,7 +12,7 @@ File.protect (customSM);
 
 //CWD
 new File ("contains.js").size (function (error, size){
-	console.log ("1: " + size); //Prints: 205 (READ allowed)
+	console.log ("1: " + size); //Prints: 158 (READ allowed)
 });
 var f2 = new File ("temp");
 f2.removeOnExit (function (error, removed){
