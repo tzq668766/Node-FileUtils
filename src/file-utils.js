@@ -4,7 +4,7 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 14/07/2012
+ * @modified 21/07/2012
  * @version 0.1.9
  */
 "use strict";
@@ -22,6 +22,7 @@ var SECURITY_READ_WRITE_ERROR = new Error ("Security error, cannot read nor writ
 
 var SM = null;
 
+//Support to FS.exists and FS.existsSync
 var EXISTS = FS.exists || PATH.exists;
 var EXISTS_SYNC = FS.existsSync || PATH.existsSync;
 
@@ -71,7 +72,6 @@ var File = function (path){
 		}
 	};
 	this._removeOnExitCallback.first = true;
-	this._executingList = false;
 	
 	updateFileProperties (this, path);
 };
@@ -187,65 +187,10 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 };
 
 File.prototype.contains = function (file, cb){
-	/*if (!cb) return;
-	cb = cb.bind (this);
-	if (!this._path) return cb (NULL_PATH_ERROR, false);
-	if (!canReadSM (this._usablePath)){
-		return cb (SECURITY_READ_ERROR, false);
-	}
+	if (!cb) return;
+	if (file instanceof File) file = file.getName ();
 	
-	file = file instanceof File ? file.getName () : file;
-	
-	var me = this;
-	FS.stat (this._usablePath, function (error, stats){
-		if (error){
-			if (cb) cb (error, false);
-		}else if (stats.isFile ()){
-			if (cb) cb ("The path is not a directory.", false);
-		}else if (stats.isDirectory ()){
-			var search = function (dir){
-				FS.readdir (dir, function (error, files){
-					if (error) return cb (error, false);
-					
-					var filesLen = files.length;
-					var done = 0;
-					var finish = function (){
-						if (done === filesLen){
-							if (cb) cb (null, 123);
-							return true;
-						}
-						return false;
-					};
-					
-					if (finish ()) return;
-					var path;
-					var f;
-					for (var i=0; i<filesLen; i++){
-						f = files[i];
-						if (f === file){
-							cb (null, true);
-							break;
-						}
-						
-						path = PATH.join (dir, f);console.log (path);
-						FS.stat (path, function (error, stats){
-							if (error) return cb (error, false);
-							if (stats.isDirectory ()){
-								search (path);
-							}
-						});
-					}
-				});
-			};
-			
-			search (me._usablePath);
-		}
-	});*/
-	
-	this.search (file, function (error, files){
-		if (error) cb (error, false);
-		else cb (null, files.length !== 0);
-	});
+	list (null, cb, this, false, file);
 };
 
 File.prototype.copy = function (location, replace, cb){
@@ -582,7 +527,7 @@ File.prototype.lastModified = function (cb){
 	});
 };
 
-File.prototype._list = function (filter, cb, withFiles){
+/*File.prototype._list = function (filter, cb, withFiles){
 	var search = function (relativeFolder, folder, holder, filter, cb){
 		var applyFilter = function (files){
 			var f = [];
@@ -651,22 +596,101 @@ File.prototype._list = function (filter, cb, withFiles){
 		me._executingList = false;
 		if (cb) cb (error, files);
 	});
-};
+};*/
 
-var checkList = function (filter, cb, file, withFiles){
-	if (cb) cb = cb.bind (file);
-	if (!file._path) return cb (NULL_PATH_ERROR, null);
-	if (!canReadSM (file._usablePath)){
-		return cb (SECURITY_READ_ERROR, null);
+var list = function (filter, cb, thisFile, withFiles, stopFile){
+	if (cb) cb = cb.bind (thisFile);
+	if (!thisFile._path) return cb (NULL_PATH_ERROR, stopFile ? false : null);
+	if (!canReadSM (thisFile._usablePath)){
+		return cb (SECURITY_READ_ERROR, stopFile ? false : null);
 	}
 	
-	FS.stat (file._usablePath, function (error, stats){
+	var found = false;
+	var exit = false;
+	
+	FS.stat (thisFile._usablePath, function (error, stats){
 		if (error){
-			if (cb) cb (error, null);
+			if (cb) cb (error, stopFile ? false : null);
 		}else if (stats.isFile ()){
-			if (cb) cb ("The path is not a directory.", null);
+			if (cb) cb ("The path is not a directory.", stopFile ? false : null);
 		}else if (stats.isDirectory ()){
-			file._list (filter, cb, withFiles);
+			var applyFilter = function (folder, files){
+				var f = [];
+				var file;
+				files.forEach (function (file){
+					if (filter (file, PATH.join (folder, file))){
+						f.push (file);
+					}
+				});
+				return f;
+			};
+			
+			var search = function (relativeFolder, folder, holder, filter, callback){
+				FS.readdir (relativeFolder, function (error, files){
+					if (error){
+						if (callback) callback (error, stopFile ? false : null);
+						return;
+					}
+					if (filter){
+						files = applyFilter (folder, files);
+					}
+					
+					var filesLen = files.length;
+					var done = 0;
+					var finish = function (){
+						if (done === filesLen){
+							if (callback){
+								if (stopFile) callback (null, false);
+								else callback (null, holder);
+							}
+							return true;
+						}
+						return false;
+					};
+					
+					if (finish ()) return;
+					var len = files.length;
+					for (var i=0; i<len && !found; i++){
+						(function (file){
+							var filePath = PATH.join (folder, file);
+							FS.stat (PATH.join (relativeFolder, file), function (error, stats){
+								if (error) return callback (error, stopFile ? false : null);
+								if (stats.isFile ()){
+									if (stopFile){
+										if (file === stopFile && !exit){
+											exit = true;
+											found = true;
+											return cb (null, true);
+										}
+									}
+									
+									holder[file] = withFiles ? new File (filePath) : filePath;
+									done++;
+									finish ();
+								}else if (stats.isDirectory ()){
+									holder[file] = {};
+									search (
+										PATH.join (relativeFolder, file),
+										filePath,
+										holder[file],
+										filter,
+										function (error, files){
+											if (error){
+												if (callback) callback (error, stopFile ? false : null);
+												return;
+											}
+											done++;
+											finish ();
+										}
+									);
+								}
+							});
+						})(files[i]);
+					};
+				});
+			};
+
+			search (thisFile._usablePath, thisFile._path, {}, filter, cb);
 		}
 	});
 };
@@ -679,7 +703,7 @@ File.prototype.list = function (filter, cb){
 		filter = null;
 	}
 	
-	checkList (filter, cb, this, false);
+	list (filter, cb, this, false, null);
 };
 
 File.prototype.listFiles = function (filter, cb){
@@ -690,7 +714,7 @@ File.prototype.listFiles = function (filter, cb){
 		filter = null;
 	}
 	
-	checkList (filter, cb, this, true);
+	list (filter, cb, this, true, null);
 };
 
 File.protect = function (sm){
@@ -857,17 +881,20 @@ File.prototype.rename = function (file, replace, cb){
 	}
 };
 
-File.prototype.search = function (file, cb){
+var search = function (file, cb, thisfile, withFiles){
 	if (!cb) return;
-	cb = cb.bind (this);
-	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	cb = cb.bind (thisfile);
+	if (!thisfile._path) return cb (NULL_PATH_ERROR, false);
+	if (!canReadSM (thisfile._usablePath)){
+		return cb (SECURITY_READ_ERROR, null);
+	}
 	
-	file = file instanceof File ? file.getName () : file;
+	if (file instanceof File) file = file.getName ();
 	var files = [];
 	
-	this.list (function (name, path){
+	thisfile.list (function (name, path){
 		if (name === file){
-			files.push (path);
+			files.push (withFiles ? new File (path) : path);
 		}
 		return true;
 	}, function (error){
@@ -876,21 +903,16 @@ File.prototype.search = function (file, cb){
 	});
 };
 
+File.prototype.search = function (file, cb){
+	search (file, function (error, files){
+		if (cb) cb (error, files);
+	}, this, false);
+};
+
 File.prototype.searchFiles = function (file, cb){
-	if (!cb) return;
-	cb = cb.bind (this);
-	if (!this._path) return cb (NULL_PATH_ERROR, false);
-	
-	this.search (file, function (error, files){
-		if (error){
-			cb (error, null);
-		}else{
-			for (var i in files){
-				files[i] = new File (files[i]);
-			}
-			cb (null, files);
-		}
-	});
+	search (file, function (error, files){
+		if (cb) cb (error, files);
+	}, this, true);
 };
 
 File.prototype.setExecutable = function (executable, cb){
@@ -1054,7 +1076,7 @@ File.prototype.toString = function (){
 	return this._path;
 };
 
-File.prototype.zip = function (location, replace, cb){
+/*File.prototype.zip = function (location, replace, cb){
 	var argsLen = arguments.length;
 	if (argsLen === 1){
 		replace = false;
@@ -1079,7 +1101,7 @@ File.prototype.zip = function (location, replace, cb){
 	}
 	
 	var me = this;
-};
+};*/
 
 var SecurityManager = function (){
 	this._allow = [{

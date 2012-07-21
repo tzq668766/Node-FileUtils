@@ -19,6 +19,7 @@ var create = function (cb){
 create (function (){
 	new File ("a").listFiles (function (error, files){
 		console.log (files);
+		
 		//Prints:
 		/*
 		{
