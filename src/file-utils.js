@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 21/07/2012
- * @version 0.1.9
+ * @modified 22/07/2012
+ * @version 0.1.10
  */
 "use strict";
 
@@ -31,26 +31,40 @@ var updateFileProperties = function (file, path){
 	file._usablePath = null;
 	file._isAbsolute = false;
 	
-	if (path === undefined || path === null) return;
+	if (path.parent === undefined || path.parent === null) return;
 	
-	path = PATH.normalize (path);
-	
-	var index = path.indexOf (":") + 1;
-	var windowsRoot = path.substring (0, index);
-	path = path.substring (index);
-	
-	//https://github.com/joyent/node/issues/3066
-	if (path[0] === "/" && path[1] === "/"){
-		path = path.replace (/[\/]/g, "\\");
-		path = path.substring (0, path.length - 1);
+	if (path.parent instanceof File){
+		path.parent = path.parent._usablePath;
 	}
 	
-	file._isAbsolute = path[0] === SLASH;
-	file._path = windowsRoot + path;
-	file._usablePath = file._isAbsolute ? file._path : (windowsRoot + PATH.join (file._relative, path));
+	path.parent = PATH.normalize (path.parent);
+	
+	var index = path.parent.indexOf (":") + 1;
+	var windowsRoot = path.parent.substring (0, index);
+	path.parent = path.parent.substring (index);
+	
+	//https://github.com/joyent/node/issues/3066
+	if (path.parent[0] === "/" && path.parent[1] === "/"){
+		path.parent = path.parent.replace (/[\/]/g, "\\");
+		path.parent = path.parent.substring (0, path.parent.length - 1);
+	}
+	
+	file._isAbsolute = path.parent[0] === SLASH;
+	
+	if (path.child !== undefined && path.child !== null){
+		if (path.child instanceof File){
+			path.child = path.child._path;
+		}
+		path.parent = PATH.join (path.parent, PATH.normalize (path.child));
+	}
+	
+	file._path = windowsRoot + path.parent;
+	file._usablePath = file._isAbsolute
+		? file._path
+		: (windowsRoot + PATH.join (file._relative, path.parent));
 };
 
-var File = function (path){
+var File = function (parent, child){
 	var main = process.mainModule.filename;
 	var cwd = main.substring (0, main.lastIndexOf (SLASH));
 	var relative = PATH.relative (process.cwd (), cwd);
@@ -73,7 +87,7 @@ var File = function (path){
 	};
 	this._removeOnExitCallback.first = true;
 	
-	updateFileProperties (this, path);
+	updateFileProperties (this, { parent: parent, child: child });
 };
 
 var canReadSM = function (path){
@@ -370,10 +384,6 @@ File.createTempFile = function (settings, cb){
 		cb = settings;
 		settings = null;
 	}
-	if (!canWriteSM (this._usablePath)){
-		if (cb) cb (SECURITY_WRITE_ERROR, false);
-		return;
-	}
 	
 	var pre = "";
 	var suf = "";
@@ -386,7 +396,13 @@ File.createTempFile = function (settings, cb){
 	}
 	
 	var random = Math.floor (Math.random ()*1000000000000);
-	var f = new File (PATH.join (dir, pre + random + suf));
+	var f = new File (dir, pre + random + suf);
+	
+	if (!canWriteSM (f._usablePath)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
+	
 	EXISTS (f._usablePath, function (exists){
 		if (exists){
 			File.createTempFile (settings, cb);
@@ -402,7 +418,47 @@ File.createTempFile = function (settings, cb){
 			s.end ();
 		}
 	});
-}
+};
+
+File.createTempFolder = function (settings, cb){
+	if (arguments.length === 1 && typeof settings === "function"){
+		cb = settings;
+		settings = null;
+	}
+	
+	var pre = "";
+	var suf = "";
+	var dir = ".";
+	
+	if (settings){
+		pre = settings.prefix ? settings.prefix : pre;
+		suf = settings.suffix ? settings.suffix : suf;
+		dir = settings.directory ? settings.directory.toString () : dir;
+	}
+	
+	var random = Math.floor (Math.random ()*1000000000000);
+	var f = new File (dir, pre + random + suf);
+	
+	if (!canWriteSM (f._usablePath)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
+	
+	EXISTS (f._usablePath, function (exists){
+		if (exists){
+			File.createTempFolder (settings, cb);
+		}else{
+			f.removeOnExit ();
+			f.createDirectory (function (error, created){
+				if (error){
+					if (cb) cb (error, null);
+				}else{
+					if (cb) cb (null, f);
+				}
+			});
+		}
+	});
+};
 
 File.prototype.equals = function (file){
 	var p = (file instanceof File) ?
@@ -526,77 +582,6 @@ File.prototype.lastModified = function (cb){
 		else cb (null, stats.mtime);
 	});
 };
-
-/*File.prototype._list = function (filter, cb, withFiles){
-	var search = function (relativeFolder, folder, holder, filter, cb){
-		var applyFilter = function (files){
-			var f = [];
-			var file;
-			files.forEach (function (file){
-				if (filter (file, PATH.join (folder, file))){
-					f.push (file);
-				}
-			});
-			return f;
-		};
-		
-		FS.readdir (relativeFolder, function (error, files){
-			if (error){
-				if (cb) cb (error, null);
-				return;
-			}
-			if (filter){
-				files = applyFilter (files);
-			}
-			
-			var filesLen = files.length;
-			var done = 0;
-			var finish = function (){
-				if (done === filesLen){
-					if (cb) cb (null, holder);
-					return true;
-				}
-				return false;
-			};
-			
-			if (finish ()) return;
-			files.forEach (function (file){
-				var filePath = PATH.join (folder, file);
-				FS.stat (PATH.join (relativeFolder, file), function (error, stats){
-					if (error) return cb (error, null);
-					if (stats.isFile ()){
-						holder[file] = withFiles ? new File (filePath) : filePath;
-						done++;
-						finish ();
-					}else if (stats.isDirectory ()){
-						holder[file] = {};
-						search (
-							PATH.join (relativeFolder, file),
-							filePath,
-							holder[file],
-							filter,
-							function (error, files){
-								if (error){
-									if (cb) cb (error, null);
-									return;
-								}
-								done++;
-								finish ();
-							}
-						);
-					}
-				});
-			});
-		});
-	};
-
-	this._executingList = true;
-	var me = this;
-	search (this._usablePath, this._path, {}, filter, function (error, files){
-		me._executingList = false;
-		if (cb) cb (error, files);
-	});
-};*/
 
 var list = function (filter, cb, thisFile, withFiles, stopFile){
 	if (cb) cb = cb.bind (thisFile);
@@ -861,7 +846,7 @@ File.prototype.rename = function (file, replace, cb){
 			if (error){
 				if (cb) cb (error, false);
 			}else{
-				updateFileProperties (me, path);
+				updateFileProperties (me, { parent: path });
 				if (cb) cb (null, true);
 			}
 		});
@@ -870,7 +855,6 @@ File.prototype.rename = function (file, replace, cb){
 	if (replace){
 		rename ();
 	}else{
-		var me = this;
 		EXISTS (file, function (exists){
 			if (exists){
 				if (cb) cb (null, false);
