@@ -408,14 +408,14 @@ File.createTempFile = function (settings, cb){
 			File.createTempFile (settings, cb);
 		}else{
 			f.removeOnExit ();
-			var s = FS.createWriteStream (f._usablePath);
-			s.on ("error", function (error){
-				if (cb) cb (error, null);
-			});
-			s.on ("close", function (){
-				if (cb) cb (null, f);
-			});
-			s.end ();
+			FS.createWriteStream (f._usablePath)
+				.on ("error", function (error){
+					if (cb) cb (error, null);
+				})
+				.on ("close", function (){
+					if (cb) cb (null, f);
+				})
+				.end ();
 		}
 	});
 };
