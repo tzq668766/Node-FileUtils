@@ -367,14 +367,14 @@ File.prototype.createNewFile = function (cb){
 		if (exists){
 			if (cb) cb (null, false);
 		}else{
-			var s = FS.createWriteStream (path);
-			s.on ("error", function (error){
-				if (cb) cb (error, false);
-			});
-			s.on ("close", function (){
-				if (cb) cb (null, true);
-			});
-			s.end ();
+			FS.createWriteStream (path)
+				.on ("error", function (error){
+					if (cb) cb (error, false);
+				})
+				.on ("close", function (){
+					if (cb) cb (null, true);
+				})
+				.end ();
 		}
 	});
 };
