@@ -105,7 +105,7 @@ var canReadWriteSM = function (path){
 	return SecurityManager._checkSecurity (path) & SecurityManager.READ_WRITE.id;
 };
 
-var checkPermission = function (file, mask, cb, o){
+var checkPermission = function (file, mask, cb){
 	FS.stat (file, function (error, stats){
 		if (error){
 			cb (error, false);
@@ -142,7 +142,7 @@ File.prototype.canExecute = function (cb){
 	if (!canReadSM (this._usablePath)){
 		return cb (SECURITY_READ_ERROR, false);
 	}
-	checkPermission (this._usablePath, 1, cb, this);
+	checkPermission (this._usablePath, 1, cb);
 };
 
 File.prototype.canRead = function (cb){
