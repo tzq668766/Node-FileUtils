@@ -25,7 +25,7 @@ f2.createNewFile (function (error, created){
 //CWD, "./a"
 new File ("a").createDirectory (function (error, created){
 	console.log ("4: " + created); //Prints: false (WRITE denied)
-	console.log ("5: " + error); //Prints: [Error: Security error, cannot write.]
+	console.log ("5: " + error); //Prints: Error: SECURITY_WRITE
 });
 
 //Outside CWD, ".."

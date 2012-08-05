@@ -29,5 +29,5 @@ f3.size (function (error, size){
 });
 f3.remove (function (error, removed){
 	console.log ("5: " + removed); //Prints: false (WRITE denied)
-	console.log ("6: " + error); //Prints: [Error: Security error, cannot write.]
+	console.log ("6: " + error); //Prints: Error: SECURITY_WRITE
 });
