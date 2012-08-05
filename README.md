@@ -5,12 +5,31 @@ Node FileUtils
 
 #### File and directory utilities for node.js ####
 
-[Availability](#availability) | [Compatibility](#compatibility) | [Documentation](#documentation)
+[Show me!](#showme) | [Availability](#availability) | [Compatibility](#compatibility) | [Documentation](#documentation)
 
 Version: 0.1.11
 
 The library provides the typical file and directory utilities found in Java JDK and Java FileUtils library.
 It also has a security layer to prevent unwanted operations. All the functions are asynchronous.
+
+<a name="showme"></a>
+#### Show me! [↑](#start) ####
+
+```javascript
+var File = require ("file-utils").File;
+
+var settings = {
+	prefix: "foo",
+	suffix: "bar",
+	directory: "."
+};
+
+File.createTempFile (settings, function (error, file){
+	console.log (file.toString ()); //Prints: foo<random number>bar
+});
+```
+
+***
 
 <a name="availability"></a>
 #### Availability [↑](#start) ####
