@@ -1134,33 +1134,6 @@ File.prototype.toString = function (){
 	return this._path;
 };
 
-/*File.prototype.zip = function (location, replace, cb){
-	var argsLen = arguments.length;
-	if (argsLen === 1){
-		replace = false;
-	}else if (argsLen === 2 && typeof replace === "function"){
-		cb = replace;
-		replace = false;
-	}
-	
-	if (cb) cb = cb.bind (this);
-
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
-	if (!canReadWriteSM (this._usablePath)){
-		if (cb) cb (Error.get (Error.SECURITY_READ_WRITE), false);
-		return;
-	}
-	
-	if (!(location instanceof File)){
-		location = new File (location)._usablePath;
-	}
-	
-	var me = this;
-};*/
-
 var SecurityManager = function (){
 	this._allow = [{
 		directory: new File (".").getAbsolutePath (),
