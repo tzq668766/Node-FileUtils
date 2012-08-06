@@ -117,7 +117,8 @@ create (function (){
 					}
 					*/
 					
-					//Deep 3 with a synchronous/asynchronous filter
+					//Deep 3 with a synchronous/asynchronous filter, therefore only the of
+					//"a", "b", "c", "d" and "e" will be showed
 					//If we found a file named a1.txt we'll calculate its MD5 checksum and then
 					//continue the listing
 					f.list (function (name, path, ret){
@@ -138,7 +139,7 @@ create (function (){
 					}, 3, function (error, files){
 						if (error) return console.log (error);
 						
-						console.log ("\nDeep = 2 with asynchronous filter:");
+						console.log ("\nDeep = 3 with asynchronous filter:");
 						console.log (files);
 						
 						/*
