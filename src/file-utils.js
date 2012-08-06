@@ -582,6 +582,13 @@ File.prototype.isHidden = function (){
 	return this.getName ()[0] === ".";
 };
 
+File.prototype.isRoot = function (){
+	var parent = this.getAbsoluteFile ().getParentFile ();
+	if (!parent) return false;
+	parent = parent.getParent ();
+	return parent === null;
+};
+
 File.prototype.lastModified = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
