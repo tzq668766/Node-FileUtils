@@ -4,3 +4,4 @@ console.log (new File ("D:").isRoot ()); //Prints: false, it's the same as D:. o
 console.log (new File ("D:/").isRoot ()); //Prints: true
 console.log (new File ("D:/a").isRoot ()); //Prints: false
 console.log (new File ("D:/a/").isRoot ()); //Prints: false
+console.log (new File ("/").isRoot ()); //Prints: true
