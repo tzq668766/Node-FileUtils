@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 05/08/2012
- * @version 0.1.11
+ * @modified 06/08/2012
+ * @version 0.2.0
  */
 "use strict";
 
@@ -24,6 +24,12 @@ Error.create ("SECURITY_WRITE", Error.getNextAvailableErrorCode (),
 		"Security error, cannot write.");
 Error.create ("SECURITY_READ_WRITE", Error.getNextAvailableErrorCode (),
 		"Security error, cannot read nor write.");
+Error.create ("PATH_NO_DIR", Error.getNextAvailableErrorCode (),
+		"The path \"{path}\" is not a directory.");
+Error.create ("PATH_NO_FILE", Error.getNextAvailableErrorCode (),
+		"The path \"{path}\" is not a file.");
+Error.create ("DEEP", Error.getNextAvailableErrorCode (),
+		"The deep must be greater than 0.");
 
 var SLASH = PATH.normalize ("/");
 var SM = null;
@@ -49,7 +55,7 @@ var updateFileProperties = function (file, path){
 	var windowsRoot = path.parent.substring (0, index);
 	path.parent = path.parent.substring (index);
 	
-	//https://github.com/joyent/node/issues/3066
+	//UNC https://github.com/joyent/node/issues/3066
 	if (path.parent[0] === "/" && path.parent[1] === "/"){
 		path.parent = path.parent.replace (/[\/]/g, "\\");
 		path.parent = path.parent.substring (0, path.parent.length - 1);
@@ -189,7 +195,7 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 		if (error){
 			cb (error, null);
 		}else if (stats.isDirectory ()){
-			cb ("The abstract path is a directory.", null);
+			cb (Error.get (Error.PATH_NO_FILE, { path: me._usablePath }), null);
 		}else if (stats.isFile ()){
 			algorithm = CRYPTO.createHash (algorithm);
 			var s = FS.ReadStream (me._usablePath);
@@ -210,7 +216,7 @@ File.prototype.contains = function (file, cb){
 	if (!cb) return;
 	if (file instanceof File) file = file.getName ();
 	
-	list (null, cb, this, false, file);
+	list (null, cb, this, false, file, null);
 };
 
 File.prototype.copy = function (location, replace, cb){
@@ -589,7 +595,7 @@ File.prototype.lastModified = function (cb){
 	});
 };
 
-var list = function (filter, cb, thisFile, withFiles, stopFile){
+var list = function (filter, cb, thisFile, withFiles, stopFile, deep){
 	if (cb) cb = cb.bind (thisFile);
 	if (!thisFile._path) return cb (Error.get (Error.NULL_PATH), stopFile ? false : null);
 	if (!canReadSM (thisFile._usablePath)){
@@ -603,109 +609,171 @@ var list = function (filter, cb, thisFile, withFiles, stopFile){
 		if (error){
 			if (cb) cb (error, stopFile ? false : null);
 		}else if (stats.isFile ()){
-			if (cb) cb ("The path is not a directory.", stopFile ? false : null);
+			if (cb) cb (Error.get (Error.PATH_NO_DIR, { path: thisFile._usablePath }),
+					stopFile ? false : null);
 		}else if (stats.isDirectory ()){
-			var applyFilter = function (folder, files){
+			var applyFilter = function (filter, folder, files, result){
+				if (!filter) return result (files);
+				
 				var f = [];
 				var file;
+				var wait = false;
+				var len = files.length;
+				
 				files.forEach (function (file){
-					if (filter (file, PATH.join (folder, file))){
+					var retFilter = null;
+					var returnFilter = filter (file, PATH.join (folder, file),
+							function (ret){
+								if (ret) f.push (file);
+								len--;
+								if (len === 0){
+									result (f);
+								}
+							});
+							
+					if (returnFilter){
+						len--;
 						f.push (file);
+					}else if (returnFilter === undefined){
+						wait = true;
 					}
 				});
-				return f;
+				
+				if (!wait) result (f);
 			};
 			
-			var search = function (relativeFolder, folder, holder, filter, callback){
+			var search = function (relativeFolder, folder, holder, filter, currentDeep, callback){
+				currentDeep++;
+				
 				FS.readdir (relativeFolder, function (error, files){
 					if (error){
 						if (callback) callback (error, stopFile ? false : null);
 						return;
 					}
-					if (filter){
-						files = applyFilter (folder, files);
-					}
-					
-					var filesLen = files.length;
-					var done = 0;
-					var finish = function (){
-						if (done === filesLen){
-							if (callback){
-								if (stopFile) callback (null, false);
-								else callback (null, holder);
+
+					applyFilter (filter, folder, files, function (files){
+						var filesLen = files.length;
+						var done = 0;
+						var finish = function (){
+							if (done === filesLen){
+								if (callback){
+									if (stopFile) callback (null, false);
+									else callback (null, holder);
+								}
+								return true;
 							}
-							return true;
-						}
-						return false;
-					};
-					
-					if (finish ()) return;
-					var len = files.length;
-					for (var i=0; i<len && !found; i++){
-						(function (file){
-							var filePath = PATH.join (folder, file);
-							FS.stat (PATH.join (relativeFolder, file), function (error, stats){
-								if (error) return callback (error, stopFile ? false : null);
-								if (stats.isFile ()){
-									if (stopFile){
-										if (file === stopFile && !exit){
-											exit = true;
-											found = true;
-											return cb (null, true);
-										}
+							return false;
+						};
+						
+						if (finish ()) return;
+						var len = files.length;
+						for (var i=0; i<len && !found; i++){
+							(function (file){
+								var filePath = PATH.join (folder, file);
+								FS.stat (PATH.join (relativeFolder, file), function (error, stats){
+									if (error){
+										if (callback) callback (error, stopFile ? false : null);
+										return;
 									}
-									
-									holder[file] = withFiles ? new File (filePath) : filePath;
-									done++;
-									finish ();
-								}else if (stats.isDirectory ()){
-									holder[file] = {};
-									search (
-										PATH.join (relativeFolder, file),
-										filePath,
-										holder[file],
-										filter,
-										function (error, files){
-											if (error){
-												if (callback) callback (error, stopFile ? false : null);
-												return;
+									if (stats.isFile ()){
+										if (stopFile){
+											if (file === stopFile && !exit){
+												exit = true;
+												found = true;
+												return cb (null, true);
 											}
+										}
+										
+										holder[file] = withFiles ? new File (filePath) : filePath;
+										done++;
+										finish ();
+									}else if (stats.isDirectory ()){
+										holder[file] = {};
+										
+										if (currentDeep === deep){
 											done++;
 											finish ();
+											return;
 										}
-									);
-								}
-							});
-						})(files[i]);
-					};
+										
+										search (
+											PATH.join (relativeFolder, file),
+											filePath,
+											holder[file],
+											filter,
+											currentDeep,
+											function (error, files){
+												if (error){
+													if (callback) callback (error, stopFile
+															? false
+															: null);
+													return;
+												}
+												done++;
+												finish ();
+											}
+										);
+									}
+								});
+							})(files[i]);
+						};
+					});
 				});
 			};
-
-			search (thisFile._usablePath, thisFile._path, {}, filter, cb);
+			
+			search (thisFile._usablePath, thisFile._path, {}, filter, 0, cb);
 		}
 	});
 };
 
-File.prototype.list = function (filter, cb){
+File.prototype.list = function (filter, deep, cb){
 	var argsLen = arguments.length;
 	if (argsLen === 0) return;
 	if (argsLen === 1){
 		cb = filter;
 		filter = null;
+		deep = null;
+	}else if (argsLen === 2){
+		if (typeof filter === "number"){
+			cb = deep;
+			deep = filter;
+			filter = null;
+		}else{
+			cb = deep;
+			deep = null;
+		}
 	}
 	
-	list (filter, cb, this, false, null);
+	if (deep !== null && deep < 1){
+		return cb (Error.get (Error.DEEP), null);
+	}
+	
+	list (filter, cb, this, false, null, deep);
 };
 
-File.prototype.listFiles = function (filter, cb){
+File.prototype.listFiles = function (filter, deep, cb){
 	var argsLen = arguments.length;
 	if (argsLen === 0) return;
 	if (argsLen === 1){
 		cb = filter;
 		filter = null;
+		deep = null;
+	}else if (argsLen === 2){
+		if (typeof filter === "number"){
+			cb = deep;
+			deep = filter;
+			filter = null;
+		}else{
+			cb = deep;
+			deep = null;
+		}
 	}
 	
-	list (filter, cb, this, true, null);
+	if (deep !== null && deep < 1){
+		return cb (Error.get (Error.DEEP), null);
+	}
+	
+	list (filter, cb, this, true, null, deep);
 };
 
 File.protect = function (sm){
