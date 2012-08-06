@@ -499,7 +499,8 @@ File.prototype.getAbsoluteFile = function (){
 File.prototype.getAbsolutePath = function (){
 	if (!this._path) return null;
 	if (this._isAbsolute) return this._path;
-	return PATH.join (PATH.dirname (process.mainModule.filename), this._path);
+	return PATH.join (PATH.dirname (process.mainModule.filename),
+			this._path.substring (this._path.indexOf (":") + 1));
 };
 
 File.prototype.getName = function (){
@@ -583,10 +584,8 @@ File.prototype.isHidden = function (){
 };
 
 File.prototype.isRoot = function (){
-	var parent = this.getAbsoluteFile ().getParentFile ();
-	if (!parent) return false;
-	parent = parent.getParent ();
-	return parent === null;
+	var absolute = this.getAbsolutePath ();
+	return absolute.substring (absolute.indexOf (":") + 1) === SLASH;
 };
 
 File.prototype.lastModified = function (cb){
