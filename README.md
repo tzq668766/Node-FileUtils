@@ -40,8 +40,6 @@ Via npm:
 npm install file-utils
 ```
 
-Or simply copying `build/file-utils.js` into your project's directory and `require()` accordingly.
-
 ***
 
 <a name="compatibility"></a>
