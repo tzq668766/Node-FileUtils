@@ -117,7 +117,7 @@ create (function (){
 					}
 					*/
 					
-					//Deep 2 with a synchronous/asynchronous filter
+					//Deep 3 with a synchronous/asynchronous filter
 					//If we found a file named a1.txt we'll calculate its MD5 checksum and then
 					//continue the listing
 					f.list (function (name, path, ret){
