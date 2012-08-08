@@ -25,7 +25,7 @@ var settings = {
 };
 
 File.createTempFile (settings, function (error, file){
-	console.log (file.toString ()); //Prints: foo<random number>bar
+	console.log (file.getPath ()); //Prints: foo<random number>bar
 });
 ```
 
