@@ -117,7 +117,7 @@ create (function (){
 					}
 					*/
 					
-					//Deep 3 with a synchronous/asynchronous filter, therefore only the of
+					//Deep 3 with a synchronous/asynchronous filter, therefore only the content of
 					//"a", "b", "c", "d" and "e" will be showed
 					//If we found a file named a1.txt we'll calculate its MD5 checksum and then
 					//continue the listing
