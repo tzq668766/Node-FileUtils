@@ -139,7 +139,7 @@ create (function (){
 					}, 3, function (error, files){
 						if (error) return console.log (error);
 						
-						console.log ("\nDeep = 3 with asynchronous filter:");
+						console.log ("\nDeep = 3 with synchronous/asynchronous filter:");
 						console.log (files);
 						
 						/*
