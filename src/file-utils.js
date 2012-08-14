@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 06/08/2012
- * @version 0.2.0
+ * @modified 14/08/2012
+ * @version 0.2.1
  */
 "use strict";
 
@@ -501,6 +501,12 @@ File.prototype.getAbsolutePath = function (){
 	if (this._isAbsolute) return this._path;
 	return PATH.join (PATH.dirname (process.mainModule.filename),
 			this._path.substring (this._path.indexOf (":") + 1));
+};
+
+File.prototype.getExtension = function (){
+	if (!this._path) return null;
+	var ext = PATH.extname (this._path);
+	return ext[0] === "." ? ext.substr (1) : ext;
 };
 
 File.prototype.getName = function (){
