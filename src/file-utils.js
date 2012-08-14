@@ -503,6 +503,13 @@ File.prototype.getAbsolutePath = function (){
 			this._path.substring (this._path.indexOf (":") + 1));
 };
 
+File.prototype.getBaseName = function (){
+	if (!this._path) return null;
+	var name = this.getName ();
+	var ext = this.getExtension ();
+	return ext ? name.substring (0, name.length - (ext.length + 1)) : name;
+};
+
 File.prototype.getExtension = function (){
 	if (!this._path) return null;
 	var ext = PATH.extname (this._path);
@@ -511,7 +518,8 @@ File.prototype.getExtension = function (){
 
 File.prototype.getName = function (){
 	if (!this._path) return null;
-	return PATH.basename (this._path);
+	var name = PATH.basename (this._path);
+	return name === "." ? "" : name;
 };
 
 File.prototype.getOriginalPath = function (){
