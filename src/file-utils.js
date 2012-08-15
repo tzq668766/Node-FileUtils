@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 14/08/2012
- * @version 0.2.1
+ * @modified 15/08/2012
+ * @version 0.2.2
  */
 "use strict";
 
@@ -43,8 +43,6 @@ var updateFileProperties = function (file, path){
 	file._usablePath = null;
 	file._isAbsolute = false;
 	
-	if (path.parent === undefined || path.parent === null) return;
-	
 	if (path.parent instanceof File){
 		path.parent = path.parent._usablePath;
 	}
@@ -77,6 +75,8 @@ var updateFileProperties = function (file, path){
 };
 
 var File = function (parent, child){
+	if (!parent) throw Error.get (Error.NULL_PATH);
+
 	var main = process.mainModule.filename;
 	var cwd = main.substring (0, main.lastIndexOf (SLASH));
 	var relative = PATH.relative (process.cwd (), cwd);
@@ -86,16 +86,8 @@ var File = function (parent, child){
 	this._removeOnExit = false;
 	this._removeOnExitCallback = function (cb){
 		if (!me._removeOnExit) return;
-		try{
-			var error = removeSynchronous (me);
-			if (error instanceof Error){
-				if (cb) cb (error, false);
-			}else{
-				if (cb) cb (null, error);
-			}
-		}catch (e){
-			if (cb) cb (e);
-		}
+		var result = removeSynchronous (me);
+		if (cb) cb (result.error, result.removed);
 	};
 	this._removeOnExitCallback.first = true;
 	
@@ -104,17 +96,17 @@ var File = function (parent, child){
 
 var canReadSM = function (path){
 	if (!SM) return true;
-	return SecurityManager._checkSecurity (path) & SecurityManager.READ.id;
+	return SecurityManager._checkSecurity (path) & SecurityManager.READ;
 };
 
 var canWriteSM = function (path){
 	if (!SM) return true;
-	return SecurityManager._checkSecurity (path) & SecurityManager.WRITE.id;
+	return SecurityManager._checkSecurity (path) & SecurityManager.WRITE;
 };
 
 var canReadWriteSM = function (path){
 	if (!SM) return true;
-	return SecurityManager._checkSecurity (path) & SecurityManager.READ_WRITE.id;
+	return SecurityManager._checkSecurity (path) & SecurityManager.READ_WRITE;
 };
 
 var checkPermission = function (file, mask, cb){
@@ -150,7 +142,6 @@ var setPermission = function (file, mask, action, cb){
 File.prototype.canExecute = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), false);
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), false);
 	}
@@ -160,7 +151,6 @@ File.prototype.canExecute = function (cb){
 File.prototype.canRead = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), false);
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), false);
 	}
@@ -170,7 +160,6 @@ File.prototype.canRead = function (cb){
 File.prototype.canWrite = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), false);
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), false);
 	}
@@ -185,7 +174,6 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 	
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), null);
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), null);
 	}
@@ -229,11 +217,7 @@ File.prototype.copy = function (location, replace, cb){
 	}
 	
 	if (cb) cb = cb.bind (this);
-
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
+	
 	if (!canReadWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_READ_WRITE), false);
 		return;
@@ -320,10 +304,7 @@ File.prototype.copy = function (location, replace, cb){
 
 File.prototype.createDirectory = function (cb){
 	if (cb) cb = cb.bind (this);
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
+	
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -365,10 +346,7 @@ File.prototype.createDirectory = function (cb){
 
 File.prototype.createNewFile = function (cb){
 	if (cb) cb = cb.bind (this);
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
+	
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -482,7 +460,7 @@ File.prototype.equals = function (file){
 File.prototype.exists = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), false);
+	
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), false);
 	}
@@ -550,7 +528,7 @@ File.prototype.getPath = function (){
 File.prototype.getPermissions = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), null);
+	
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), null);
 	}
@@ -570,7 +548,7 @@ File.prototype.isAbsolute = function (){
 File.prototype.isDirectory = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), false);
+	
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), false);
 	}
@@ -583,8 +561,8 @@ File.prototype.isDirectory = function (cb){
 File.prototype.isFile = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), false);
-		if (!canReadSM (this._usablePath)){
+	
+	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), false);
 	}
 	FS.stat (this._usablePath, function (error, stats){
@@ -605,19 +583,19 @@ File.prototype.isRoot = function (){
 File.prototype.lastModified = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), null);
+	
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), null);
 	}
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, null);
-		else cb (null, stats.mtime);
+		else cb (null, Date.parse (stats.mtime));
 	});
 };
 
 var list = function (filter, cb, thisFile, withFiles, stopFile, deep){
 	if (cb) cb = cb.bind (thisFile);
-	if (!thisFile._path) return cb (Error.get (Error.NULL_PATH), stopFile ? false : null);
+	
 	if (!canReadSM (thisFile._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), stopFile ? false : null);
 	}
@@ -802,10 +780,7 @@ File.protect = function (sm){
 
 File.prototype.remove = function (cb){
 	if (cb) cb = cb.bind (this);
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
+	
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -864,24 +839,26 @@ File.prototype.remove = function (cb){
 };
 
 var removeSynchronous = function (file){
-	if (!file._path) return false;
 	if (!canWriteSM (file._usablePath)){
-		return Error.get (Error.SECURITY_WRITE);
+		return { error: Error.get (Error.SECURITY_WRITE), removed: false };
 	}
-	if (!EXISTS_SYNC (file._usablePath)) return false;
+	if (!EXISTS_SYNC (file._usablePath)) return { error: null, removed: false };
 	
 	var stats = FS.statSync (file._usablePath);
+	var result;
+	
 	if (stats.isFile ()){
 		FS.unlinkSync (file._usablePath);
 	}else if (stats.isDirectory ()){
 		var files = FS.readdirSync (file._usablePath);
 		for (var i in files){
-			removeSynchronous (new File (PATH.join (file._path, files[i])));
+			result = removeSynchronous (new File (PATH.join (file._path, files[i])));
+			if (result.error) return { error: result.error, removed: result.removed };
 		}
 		FS.rmdirSync (file._usablePath);
 	}
 	
-	return true;
+	return { error: null, removed: true };
 };
 
 File.prototype.removeOnExit = function (remove, cb){
@@ -917,10 +894,6 @@ File.prototype.rename = function (file, replace, cb){
 	
 	if (cb) cb = cb.bind (this);
 	
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -962,7 +935,7 @@ File.prototype.rename = function (file, replace, cb){
 var search = function (file, cb, thisfile, withFiles){
 	if (!cb) return;
 	cb = cb.bind (thisfile);
-	if (!thisfile._path) return cb (Error.get (Error.NULL_PATH), false);
+	
 	if (!canReadSM (thisfile._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), null);
 	}
@@ -1004,10 +977,6 @@ File.prototype.setExecutable = function (executable, cb){
 	
 	if (cb) cb = cb.bind (this);
 	
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
 	if (process.platform === "win32"){
 		if (cb) cb (null, false);
 	}
@@ -1021,10 +990,7 @@ File.prototype.setExecutable = function (executable, cb){
 
 File.prototype.setPermissions = function (permissions, cb){
 	if (cb) cb = cb.bind (this);
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
+	
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -1046,10 +1012,6 @@ File.prototype.setReadable = function (readable, cb){
 	
 	if (cb) cb = cb.bind (this);
 	
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
 	if (process.platform === "win32"){
 		if (cb) cb (null, false);
 	}
@@ -1063,10 +1025,7 @@ File.prototype.setReadable = function (readable, cb){
 
 File.prototype.setReadOnly = function (cb){
 	if (cb) cb = cb.bind (this);
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
+	
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -1088,10 +1047,6 @@ File.prototype.setWritable = function (writable, cb){
 	
 	if (cb) cb = cb.bind (this);
 	
-	if (!this._path){
-		if (cb) cb (Error.get (Error.NULL_PATH), false);
-		return;
-	}
 	if (!canWriteSM (this._usablePath)){
 		if (cb) cb (Error.get (Error.SECURITY_WRITE), false);
 		return;
@@ -1103,7 +1058,7 @@ File.prototype.setWritable = function (writable, cb){
 File.prototype.size = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (Error.get (Error.NULL_PATH), 0);
+	
 	if (!canReadSM (this._usablePath)){
 		return cb (Error.get (Error.SECURITY_READ), 0);
 	}
@@ -1162,10 +1117,10 @@ var SecurityManager = function (){
 	this._deny = [];
 };
 
-SecurityManager.NONE = Object.freeze ({ id: 0 });
-SecurityManager.READ = Object.freeze ({ id: 1 });
-SecurityManager.WRITE =  Object.freeze ({ id: 2 });
-SecurityManager.READ_WRITE = Object.freeze ({ id: 3 });
+SecurityManager.NONE = 0;
+SecurityManager.READ = 1;
+SecurityManager.WRITE = 2;
+SecurityManager.READ_WRITE = 3;
 
 var getAbsolutePath = function (path){
 	return (path instanceof File) ? path.getAbsolutePath () : new File (path).getAbsolutePath ();
@@ -1175,12 +1130,12 @@ SecurityManager._checkSecurity = function (path){
 	path = getAbsolutePath (path).replace (/\\/g, "/");
 	
 	var negatePermissions = function (id){
-		var permissions = id ^ SecurityManager.READ_WRITE.id;
+		var permissions = id ^ SecurityManager.READ_WRITE;
 		
 		for (var p in SecurityManager){
 			p = SecurityManager[p];
-			if (p.id === permissions){
-				return p.id;
+			if (p === permissions){
+				return p;
 			}
 		}
 	};
@@ -1199,7 +1154,7 @@ SecurityManager._checkSecurity = function (path){
 			if (path.match (re)){
 				if (!last.dir || !last.dir.match (re)){
 					last.dir = dir;
-					last.perm = mode ? negatePermissions (p.permissions.id) : p.permissions.id;
+					last.perm = mode ? negatePermissions (p.permissions) : p.permissions;
 				}
 			}
 		}
@@ -1215,7 +1170,7 @@ SecurityManager._checkSecurity = function (path){
 		if (permissions !== null){
 			return permissions;
 		}else{
-			return SecurityManager.READ.id;
+			return SecurityManager.READ;
 		}
 	}
 	
