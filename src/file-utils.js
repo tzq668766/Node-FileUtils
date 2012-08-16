@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 15/08/2012
- * @version 0.2.2
+ * @modified 16/08/2012
+ * @version 0.2.3
  */
 "use strict";
 
@@ -555,6 +555,34 @@ File.prototype.isDirectory = function (cb){
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, false);
 		else cb (null, stats.isDirectory ());
+	});
+};
+
+File.prototype.isEmpty = function (cb){
+	if (!cb) return;
+	cb = cb.bind (this);
+	
+	if (!canReadSM (this._usablePath)){
+		return cb (Error.get (Error.SECURITY_READ), false);
+	}
+	
+	var me = this;
+	
+	FS.stat (this._usablePath, function (error, stats){
+		if (error){
+			if (cb) cb (error, false);
+		}else if (stats.isFile ()){
+			if (cb) cb (Error.get (Error.PATH_NO_DIR, { path: me._usablePath }), false);
+		}else if (stats.isDirectory ()){
+			FS.readdir (me._usablePath, function (error, files){
+				if (error){
+					if (cb) cb (error, false);
+					return;
+				}
+				
+				if (cb) cb (null, files.length === 0);
+			});
+		}
 	});
 };
 
