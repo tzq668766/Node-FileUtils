@@ -25,7 +25,7 @@ f2.createNewFile (function (error, created){
 //Outside CWD
 var f3 = new File ("../LICENSE");
 f3.size (function (error, size){
-	console.log ("4: " + size); //Prints: 1093 (READ allowed)
+	console.log ("4: " + size); //Prints: 1073 (READ allowed)
 });
 f3.remove (function (error, removed){
 	console.log ("5: " + removed); //Prints: false (WRITE denied)
