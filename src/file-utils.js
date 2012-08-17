@@ -16,17 +16,17 @@ var CRYPTO = require ("crypto");
 
 var Error = require ("errno-codes");
 
-Error.create ("NULL_PATH", Error.getNextAvailableErrno (),
+Error.create (Error.getNextAvailableErrno (), "NULL_PATH", 
 		"Null path.");
-Error.create ("SECURITY_READ", Error.getNextAvailableErrno (),
+Error.create (Error.getNextAvailableErrno (), "SECURITY_READ", 
 		"Security error, cannot read \"{path}\".");
-Error.create ("SECURITY_WRITE", Error.getNextAvailableErrno (),
+Error.create (Error.getNextAvailableErrno (), "SECURITY_WRITE", 
 		"Security error, cannot write \"{path}\".");
-Error.create ("PATH_NO_DIR", Error.getNextAvailableErrno (),
+Error.create (Error.getNextAvailableErrno (), "PATH_NO_DIR", 
 		"The path \"{path}\" is not a directory.");
-Error.create ("PATH_NO_FILE", Error.getNextAvailableErrno (),
+Error.create (Error.getNextAvailableErrno (), "PATH_NO_FILE", 
 		"The path \"{path}\" is not a file.");
-Error.create ("DEEP", Error.getNextAvailableErrno (),
+Error.create (Error.getNextAvailableErrno (), "DEEP", 
 		"The deep must be greater than 0.");
 
 var SLASH = PATH.normalize ("/");
@@ -870,7 +870,7 @@ File.prototype.remove = function (cb){
 
 var removeSynchronous = function (file){
 	if (!canWriteSM (file._usablePath)){
-		return { error: Error.get (ErrorSECURITY_WRITE, { path: file._usablePath }),
+		return { error: Error.get (Error.SECURITY_WRITE, { path: file._usablePath }),
 				removed: false };
 	}
 	if (!EXISTS_SYNC (file._usablePath)) return { error: null, removed: false };
