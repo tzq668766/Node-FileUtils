@@ -195,7 +195,10 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 
 File.prototype.contains = function (file, cb){
 	if (!cb) return;
-	if (file instanceof File) file = file.getName ();
+	if (!(file instanceof File)){
+		file = new File (file);
+	}
+	file = file.getName ();
 	
 	list (null, cb, this, false, file, null);
 };
