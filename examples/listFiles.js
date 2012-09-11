@@ -17,7 +17,8 @@ var create = function (cb){
 };
 
 create (function (){
-	new File ("a").listFiles (function (error, files){
+	var f = new File ("a");
+	f.listFiles (function (error, files){
 		console.log (files);
 		
 		//Prints:
@@ -36,13 +37,7 @@ create (function (){
 		}
 		*/
 		
-		var names = [];
-		new File ("a").list (function (name, path){
-			names.push (name);
-			return true;
-		}, function (){
-			console.log (names); //Prints: ["a1.txt", "a2.txt", "b", "d", "b1.txt", "b2.txt", "c", "c1.txt"]
-			new File ("a").remove ();
-		});
+		console.log (files.b["b2.txt"].getPath ()); //Prints: a/b/b2.txt
+		f.remove ();
 	});
 });
