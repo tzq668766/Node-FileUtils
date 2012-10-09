@@ -3,7 +3,9 @@
 Node FileUtils
 ==============
 
-#### File and directory utilities for node.js ####
+_Node.js project_
+
+#### File and directory utilities ####
 
 [Show me!](#showme) | [Availability](#availability) | [Compatibility](#compatibility) | [Documentation](#documentation)
 

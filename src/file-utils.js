@@ -1,6 +1,6 @@
 /**
  * @name FileUtils.
- * @description File and directory utilities for node.js.
+ * @description File and directory utilities.
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
